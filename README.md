@@ -23,6 +23,7 @@ The provider uses Bearer Token authentication as required by the Pangolin Integr
 
 - [Go](https://golang.org/doc/install) >= 1.24
 - [Terraform](https://www.terraform.io/downloads.html) >= 1.0
+- [Pangolin](https://pangolin.net) >= v1.15.2 (tested against `latest`)
 
 ## Building The Provider
 
