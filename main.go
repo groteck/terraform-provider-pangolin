@@ -12,7 +12,7 @@ import (
 var (
 	// these will be set by the linker
 	version string = "dev"
-	commit  string = "none"
+	// commit  string = "none" // commit is unused for now
 )
 
 func main() {
@@ -26,7 +26,7 @@ func main() {
 		Debug:   debug,
 	}
 
-	err := providerserver.Serve(context.Background(), provider.New, opts)
+	err := providerserver.Serve(context.Background(), provider.New(version), opts)
 
 	if err != nil {
 		log.Fatal(err.Error())

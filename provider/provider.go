@@ -12,11 +12,17 @@ import (
 	"github.com/pangolin-net/terraform-provider-pangolin/internal/client"
 )
 
-func New() provider.Provider {
-	return &pangolinProvider{}
+func New(version string) func() provider.Provider {
+	return func() provider.Provider {
+		return &pangolinProvider{
+			version: version,
+		}
+	}
 }
 
-type pangolinProvider struct{}
+type pangolinProvider struct {
+	version string
+}
 
 type pangolinProviderModel struct {
 	BaseURL types.String `tfsdk:"base_url"`
@@ -25,6 +31,7 @@ type pangolinProviderModel struct {
 
 func (p *pangolinProvider) Metadata(_ context.Context, _ provider.MetadataRequest, resp *provider.MetadataResponse) {
 	resp.TypeName = "pangolin"
+	resp.Version = p.version
 }
 
 func (p *pangolinProvider) Schema(_ context.Context, _ provider.SchemaRequest, resp *provider.SchemaResponse) {

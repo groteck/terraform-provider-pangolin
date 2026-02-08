@@ -16,7 +16,7 @@ const (
 
 var (
 	testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
-		"pangolin": providerserver.NewProtocol6WithError(New()),
+		"pangolin": providerserver.NewProtocol6WithError(New("test")()),
 	}
 )
 
