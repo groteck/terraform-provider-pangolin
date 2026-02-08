@@ -1,0 +1,50 @@
+package provider
+
+import (
+	"testing"
+
+	"github.com/hashicorp/terraform-plugin-framework/providerserver"
+	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
+	"github.com/pangolin-net/terraform-provider-pangolin/internal/client"
+)
+
+const (
+	testOrgID = "test-tf"
+	testToken = "f1l1v68jvs2j8ix.34fvctzav5t46kdnchztxz6u5ajfxt5wobs4iulv"
+	testURL   = "http://localhost:3003/v1" // Integration API port and prefix
+)
+
+var (
+	testAccProtoV6ProviderFactories = map[string]func() (tfprotov6.ProviderServer, error){
+		"pangolin": providerserver.NewProtocol6WithError(New()),
+	}
+)
+
+func testAccPreCheck(t *testing.T) {
+	// Verify API is reachable
+	c := client.NewClient(testURL, testToken)
+	_, err := c.ListSites(testOrgID)
+	if err != nil {
+		t.Fatalf("API unreachable or invalid credentials: %v", err)
+	}
+}
+
+func getTestSiteID(t *testing.T) int {
+	c := client.NewClient(testURL, testToken)
+	sites, err := c.ListSites(testOrgID)
+	if err != nil {
+		t.Fatalf("failed to list sites: %v", err)
+	}
+
+	if len(sites) > 0 {
+		return sites[0].ID
+	}
+
+	// Create one if it doesn't exist
+	site, err := c.CreateSite(testOrgID, "Test Site")
+	if err != nil {
+		t.Fatalf("failed to create test site: %v", err)
+	}
+
+	return site.ID
+}

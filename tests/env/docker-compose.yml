@@ -1,0 +1,19 @@
+services:
+  pangolin:
+    image: docker.io/fosrl/pangolin:latest
+    container_name: pangolin-test
+    restart: unless-stopped
+    environment:
+      - PANGOLIN_CONFIG=/app/config/config.yml
+    volumes:
+      - ./config:/app/config
+    ports:
+      - "3000:3000" # External API?
+      - "3001:3001" # Internal API
+      - "3002:3002" # UI
+      - "3003:3003" # Integration API
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3001/api/v1/"]
+      interval: "10s"
+      timeout: "10s"
+      retries: 5
