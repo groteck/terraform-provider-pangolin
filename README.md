@@ -82,6 +82,14 @@ Manages organization-level roles.
 
 See the [examples/](examples/) directory for a full configuration.
 
+## Contributing
+
+### Commit Messages
+
+This project enforces [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/). All commit messages must follow this specification (e.g., `feat: add new resource`, `fix: resolve crash`).
+
+This format is used to automate the semantic versioning and changelog generation via the Release Please workflow.
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
