@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/groteck/terraform-provider-pangolin/internal/client"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
@@ -13,7 +14,6 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/groteck/terraform-provider-pangolin/internal/client"
 )
 
 var _ resource.Resource = &roleResource{}

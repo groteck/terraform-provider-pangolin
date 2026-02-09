@@ -3,9 +3,9 @@ package provider
 import (
 	"testing"
 
+	"github.com/groteck/terraform-provider-pangolin/internal/client"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov6"
-	"github.com/groteck/terraform-provider-pangolin/internal/client"
 )
 
 const (

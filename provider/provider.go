@@ -4,12 +4,12 @@ import (
 	"context"
 	"os"
 
+	"github.com/groteck/terraform-provider-pangolin/internal/client"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/groteck/terraform-provider-pangolin/internal/client"
 )
 
 func New(version string) func() provider.Provider {

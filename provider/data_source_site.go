@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/groteck/terraform-provider-pangolin/internal/client"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/datasource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/types"
-	"github.com/groteck/terraform-provider-pangolin/internal/client"
 )
 
 var _ datasource.DataSource = &siteDataSource{}
