@@ -8,10 +8,12 @@ import (
 
 	"github.com/groteck/terraform-provider-pangolin/internal/client"
 	"github.com/hashicorp/terraform-plugin-framework-validators/stringvalidator"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/path"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/booldefault"
+	"github.com/hashicorp/terraform-plugin-framework/resource/schema/boolplanmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/int64planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/planmodifier"
 	"github.com/hashicorp/terraform-plugin-framework/resource/schema/stringplanmodifier"
@@ -32,12 +34,14 @@ type resourceResource struct {
 
 type resourceResourceModel struct {
 	ID        types.Int64  `tfsdk:"id"`
+	Enabled   types.Bool   `tfsdk:"enabled"`
 	OrgID     types.String `tfsdk:"org_id"`
 	Name      types.String `tfsdk:"name"`
 	Protocol  types.String `tfsdk:"protocol"`
 	Http      types.Bool   `tfsdk:"http"`
 	Subdomain types.String `tfsdk:"subdomain"`
 	DomainID  types.String `tfsdk:"domain_id"`
+	ProxyPort types.Int32  `tfsdk:"proxy_port"`
 }
 
 func (r *resourceResource) Metadata(_ context.Context, req resource.MetadataRequest, resp *resource.MetadataResponse) {
@@ -54,6 +58,11 @@ func (r *resourceResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				PlanModifiers: []planmodifier.Int64{
 					int64planmodifier.UseStateForUnknown(),
 				},
+			},
+			"enabled": schema.BoolAttribute{
+				Computed:            true,
+				Optional:            true,
+				MarkdownDescription: "Wether the resource is enabled or not.",
 			},
 			"org_id": schema.StringAttribute{
 				Required:            true,
@@ -72,22 +81,146 @@ func (r *resourceResource) Schema(_ context.Context, _ resource.SchemaRequest, r
 				Validators: []validator.String{
 					stringvalidator.OneOf("tcp", "udp"),
 				},
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.RequiresReplace(),
+				},
 			},
 			"http": schema.BoolAttribute{
 				Optional:            true,
 				Computed:            true,
 				Default:             booldefault.StaticBool(true),
 				MarkdownDescription: "Whether the resource is an HTTP resource.",
+				PlanModifiers: []planmodifier.Bool{
+					boolplanmodifier.RequiresReplace(),
+				},
+			},
+			"proxy_port": schema.Int32Attribute{
+				Optional:            true,
+				Computed:            true,
+				MarkdownDescription: "The port to proxy for raw resources (when http is set to false).",
 			},
 			"subdomain": schema.StringAttribute{
-				Required:            true,
+				Optional:            true,
+				Computed:            true,
 				MarkdownDescription: "The subdomain for the resource.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 			"domain_id": schema.StringAttribute{
-				Required:            true,
+				Optional:            true,
+				Computed:            true,
 				MarkdownDescription: "The ID of the domain.",
+				PlanModifiers: []planmodifier.String{
+					stringplanmodifier.UseStateForUnknown(),
+				},
 			},
 		},
+	}
+}
+
+func (r *resourceResource) ValidateConfig(ctx context.Context, req resource.ValidateConfigRequest, resp *resource.ValidateConfigResponse) {
+	var data resourceResourceModel
+
+	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+	if resp.Diagnostics.HasError() || data.Http.IsUnknown() {
+		return
+	}
+
+	if data.Http.ValueBool() { // http resource
+		requiredParams := [](struct {
+			Key   string
+			Value attr.Value
+		}){
+			{"domain_id", data.DomainID},
+			{"subdomain", data.Subdomain},
+		}
+		for _, param := range requiredParams {
+			if param.Value.IsUnknown() {
+				continue
+			}
+			if param.Value.IsNull() {
+				resp.Diagnostics.AddError(
+					fmt.Sprintf("Missing required param `%s`", param.Key),
+					fmt.Sprintf(
+						"`%s` is required for an http resource.",
+						param.Key,
+					),
+				)
+			}
+		}
+
+		forbiddenParams := [](struct {
+			Key   string
+			Value attr.Value
+		}){
+			{"proxy_port", data.ProxyPort},
+		}
+		for _, param := range forbiddenParams {
+			if param.Value.IsUnknown() {
+				continue
+			}
+			if !param.Value.IsNull() {
+				resp.Diagnostics.AddError(
+					fmt.Sprintf("Forbidden param `%s`", param.Key),
+					fmt.Sprintf(
+						"`%s` is forbidden for an http resource.",
+						param.Key,
+					),
+				)
+			}
+		}
+
+		// wrong values
+		if !data.Protocol.IsUnknown() && data.Protocol.ValueString() == "udp" {
+			resp.Diagnostics.AddError(
+				"Forbidden value for param Protocol",
+				"Protocol cannot be set to udp for an http resource.",
+			)
+		}
+	} else { // raw resource
+		requiredParams := [](struct {
+			Key   string
+			Value attr.Value
+		}){
+			{"proxy_port", data.ProxyPort},
+		}
+		for _, param := range requiredParams {
+			if param.Value.IsUnknown() {
+				continue
+			}
+			if param.Value.IsNull() {
+				resp.Diagnostics.AddError(
+					fmt.Sprintf("Missing required param `%s`", param.Key),
+					fmt.Sprintf(
+						"`%s` is required for a raw resource.",
+						param.Key,
+					),
+				)
+			}
+		}
+
+		forbiddenParams := [](struct {
+			Key   string
+			Value attr.Value
+		}){
+			{"domain_id", data.DomainID},
+			{"subdomain", data.Subdomain},
+		}
+		for _, param := range forbiddenParams {
+			if param.Value.IsUnknown() {
+				continue
+			}
+			if !param.Value.IsNull() {
+				resp.Diagnostics.AddError(
+					fmt.Sprintf("Forbidden param `%s`", param.Key),
+					fmt.Sprintf(
+						"`%s` is forbidden for a raw resource.",
+						param.Key,
+					),
+				)
+			}
+		}
 	}
 }
 
@@ -111,11 +244,13 @@ func (r *resourceResource) Create(ctx context.Context, req resource.CreateReques
 	}
 
 	res := &client.Resource{
+		Enabled:   data.Enabled.ValueBool(),
 		Name:      data.Name.ValueString(),
 		Protocol:  data.Protocol.ValueString(),
 		Http:      data.Http.ValueBool(),
 		Subdomain: data.Subdomain.ValueString(),
 		DomainID:  data.DomainID.ValueString(),
+		ProxyPort: data.ProxyPort.ValueInt32(),
 	}
 
 	created, err := r.client.CreateResource(data.OrgID.ValueString(), res)
@@ -125,6 +260,21 @@ func (r *resourceResource) Create(ctx context.Context, req resource.CreateReques
 	}
 
 	data.ID = types.Int64Value(int64(created.ID))
+	data.ProxyPort = types.Int32Value(created.ProxyPort)
+	data.Subdomain = types.StringValue(created.Subdomain)
+	data.DomainID = types.StringValue(created.DomainID)
+
+	if !data.Enabled.IsUnknown() && !data.Enabled.IsNull() {
+		updated, err := r.client.UpdateResource(int(created.ID), res)
+		if err != nil {
+			resp.Diagnostics.AddError("Error updating resource", err.Error())
+			return
+		}
+		data.Enabled = types.BoolValue(updated.Enabled)
+	} else {
+		data.Enabled = types.BoolValue(created.Enabled)
+	}
+
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 
@@ -141,9 +291,12 @@ func (r *resourceResource) Read(ctx context.Context, req resource.ReadRequest, r
 		return
 	}
 
+	data.ID = types.Int64Value(int64(res.ID))
+	data.Enabled = types.BoolValue(res.Enabled)
 	data.Name = types.StringValue(res.Name)
 	data.Protocol = types.StringValue(res.Protocol)
 	data.Http = types.BoolValue(res.Http)
+	data.ProxyPort = types.Int32Value(res.ProxyPort)
 	data.Subdomain = types.StringValue(res.Subdomain)
 	data.DomainID = types.StringValue(res.DomainID)
 
@@ -159,20 +312,26 @@ func (r *resourceResource) Update(ctx context.Context, req resource.UpdateReques
 	}
 
 	res := &client.Resource{
+		Enabled:   data.Enabled.ValueBool(),
 		Name:      data.Name.ValueString(),
 		Protocol:  data.Protocol.ValueString(),
 		Http:      data.Http.ValueBool(),
+		ProxyPort: data.ProxyPort.ValueInt32(),
 		Subdomain: data.Subdomain.ValueString(),
 		DomainID:  data.DomainID.ValueString(),
 	}
 
-	_, err := r.client.UpdateResource(int(state.ID.ValueInt64()), res)
+	res, err := r.client.UpdateResource(int(state.ID.ValueInt64()), res)
 	if err != nil {
 		resp.Diagnostics.AddError("Error updating resource", err.Error())
 		return
 	}
 
 	data.ID = state.ID
+	data.Enabled = types.BoolValue(res.Enabled)
+	data.ProxyPort = types.Int32Value(res.ProxyPort)
+	data.Subdomain = types.StringValue(res.Subdomain)
+	data.DomainID = types.StringValue(res.DomainID)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 

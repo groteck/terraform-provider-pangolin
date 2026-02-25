@@ -337,16 +337,23 @@ func (c *Client) GetSiteResourceClients(resID int) ([]int, error) {
 // Resource definitions
 type Resource struct {
 	ID        int    `json:"resourceId,omitempty"`
+	Enabled   bool   `json:"enabled"`
 	Name      string `json:"name"`
 	Protocol  string `json:"protocol"`
 	Http      bool   `json:"http"`
-	Subdomain string `json:"subdomain"`
-	DomainID  string `json:"domainId"`
+	ProxyPort int32  `json:"proxyPort,omitempty"`
+	Subdomain string `json:"subdomain,omitempty"`
+	DomainID  string `json:"domainId,omitempty"`
 }
 
 func (c *Client) CreateResource(orgID string, res *Resource) (*Resource, error) {
 	path := fmt.Sprintf("/org/%s/resource", orgID)
-	data, err := c.doRequest("PUT", path, res)
+	type ResourceCreate struct {
+		Resource
+		Enabled interface{} `json:"enabled,omitempty"`
+	}
+	resCreate := ResourceCreate{Resource: *res}
+	data, err := c.doRequest("PUT", path, resCreate)
 	if err != nil {
 		return nil, err
 	}
@@ -368,7 +375,14 @@ func (c *Client) GetResource(resID int) (*Resource, error) {
 
 func (c *Client) UpdateResource(resID int, res *Resource) (*Resource, error) {
 	path := fmt.Sprintf("/resource/%d", resID)
-	data, err := c.doRequest("POST", path, res)
+	// http and protocol cannot be used to update in place
+	type ResourceUpdate struct {
+		Resource
+		Http     interface{} `json:"http,omitempty"`
+		Protocol interface{} `json:"protocol,omitempty"`
+	}
+	resUpdate := ResourceUpdate{Resource: *res}
+	data, err := c.doRequest("POST", path, resUpdate)
 	if err != nil {
 		return nil, err
 	}
