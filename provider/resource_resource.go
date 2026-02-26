@@ -236,6 +236,34 @@ func (r *resourceResource) Configure(_ context.Context, req resource.ConfigureRe
 	r.client = c
 }
 
+func (r *resourceResourceModel) ValueResource() client.Resource {
+	res := client.Resource{
+		Name:     r.Name.ValueString(),
+		Protocol: r.Protocol.ValueStringPointer(),
+		Http:     r.Http.ValueBoolPointer(),
+	}
+	if !r.Enabled.IsUnknown() {
+		res.Enabled = r.Enabled.ValueBoolPointer()
+	}
+	if !r.ProxyPort.IsUnknown() {
+		res.ProxyPort = r.ProxyPort.ValueInt32Pointer()
+	}
+	if !r.Subdomain.IsUnknown() {
+		res.Subdomain = r.Subdomain.ValueStringPointer()
+	}
+	if !r.DomainID.IsUnknown() {
+		res.DomainID = r.DomainID.ValueStringPointer()
+	}
+	return res
+}
+
+func appendComputedParamsToData(res *client.Resource, data *resourceResourceModel) {
+	data.ProxyPort = types.Int32PointerValue(res.ProxyPort)
+	data.Subdomain = types.StringPointerValue(res.Subdomain)
+	data.DomainID = types.StringPointerValue(res.DomainID)
+	data.Enabled = types.BoolPointerValue(res.Enabled)
+}
+
 func (r *resourceResource) Create(ctx context.Context, req resource.CreateRequest, resp *resource.CreateResponse) {
 	var data resourceResourceModel
 	resp.Diagnostics.Append(req.Plan.Get(ctx, &data)...)
@@ -243,16 +271,7 @@ func (r *resourceResource) Create(ctx context.Context, req resource.CreateReques
 		return
 	}
 
-	res := &client.Resource{
-		Enabled:   data.Enabled.ValueBool(),
-		Name:      data.Name.ValueString(),
-		Protocol:  data.Protocol.ValueString(),
-		Http:      data.Http.ValueBool(),
-		Subdomain: data.Subdomain.ValueString(),
-		DomainID:  data.DomainID.ValueString(),
-		ProxyPort: data.ProxyPort.ValueInt32(),
-	}
-
+	res := data.ValueResource()
 	created, err := r.client.CreateResource(data.OrgID.ValueString(), res)
 	if err != nil {
 		resp.Diagnostics.AddError("Error creating resource", err.Error())
@@ -260,9 +279,7 @@ func (r *resourceResource) Create(ctx context.Context, req resource.CreateReques
 	}
 
 	data.ID = types.Int64Value(int64(created.ID))
-	data.ProxyPort = types.Int32Value(created.ProxyPort)
-	data.Subdomain = types.StringValue(created.Subdomain)
-	data.DomainID = types.StringValue(created.DomainID)
+	appendComputedParamsToData(created, &data)
 
 	if !data.Enabled.IsUnknown() && !data.Enabled.IsNull() {
 		updated, err := r.client.UpdateResource(int(created.ID), res)
@@ -270,9 +287,7 @@ func (r *resourceResource) Create(ctx context.Context, req resource.CreateReques
 			resp.Diagnostics.AddError("Error updating resource", err.Error())
 			return
 		}
-		data.Enabled = types.BoolValue(updated.Enabled)
-	} else {
-		data.Enabled = types.BoolValue(created.Enabled)
+		appendComputedParamsToData(updated, &data)
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
@@ -292,13 +307,10 @@ func (r *resourceResource) Read(ctx context.Context, req resource.ReadRequest, r
 	}
 
 	data.ID = types.Int64Value(int64(res.ID))
-	data.Enabled = types.BoolValue(res.Enabled)
 	data.Name = types.StringValue(res.Name)
-	data.Protocol = types.StringValue(res.Protocol)
-	data.Http = types.BoolValue(res.Http)
-	data.ProxyPort = types.Int32Value(res.ProxyPort)
-	data.Subdomain = types.StringValue(res.Subdomain)
-	data.DomainID = types.StringValue(res.DomainID)
+	data.Protocol = types.StringPointerValue(res.Protocol)
+	data.Http = types.BoolPointerValue(res.Http)
+	appendComputedParamsToData(res, &data)
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
@@ -311,27 +323,17 @@ func (r *resourceResource) Update(ctx context.Context, req resource.UpdateReques
 		return
 	}
 
-	res := &client.Resource{
-		Enabled:   data.Enabled.ValueBool(),
-		Name:      data.Name.ValueString(),
-		Protocol:  data.Protocol.ValueString(),
-		Http:      data.Http.ValueBool(),
-		ProxyPort: data.ProxyPort.ValueInt32(),
-		Subdomain: data.Subdomain.ValueString(),
-		DomainID:  data.DomainID.ValueString(),
-	}
-
-	res, err := r.client.UpdateResource(int(state.ID.ValueInt64()), res)
+	res, err := r.client.UpdateResource(
+		int(state.ID.ValueInt64()),
+		data.ValueResource(),
+	)
 	if err != nil {
 		resp.Diagnostics.AddError("Error updating resource", err.Error())
 		return
 	}
 
 	data.ID = state.ID
-	data.Enabled = types.BoolValue(res.Enabled)
-	data.ProxyPort = types.Int32Value(res.ProxyPort)
-	data.Subdomain = types.StringValue(res.Subdomain)
-	data.DomainID = types.StringValue(res.DomainID)
+	appendComputedParamsToData(res, &data)
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
 }
 

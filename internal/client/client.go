@@ -336,24 +336,20 @@ func (c *Client) GetSiteResourceClients(resID int) ([]int, error) {
 
 // Resource definitions
 type Resource struct {
-	ID        int    `json:"resourceId,omitempty"`
-	Enabled   bool   `json:"enabled"`
-	Name      string `json:"name"`
-	Protocol  string `json:"protocol"`
-	Http      bool   `json:"http"`
-	ProxyPort int32  `json:"proxyPort,omitempty"`
-	Subdomain string `json:"subdomain,omitempty"`
-	DomainID  string `json:"domainId,omitempty"`
+	ID        int     `json:"resourceId,omitempty"`
+	Enabled   *bool   `json:"enabled,omitempty"`
+	Name      string  `json:"name"`
+	Protocol  *string `json:"protocol,omitempty"`
+	Http      *bool   `json:"http,omitempty"`
+	ProxyPort *int32  `json:"proxyPort,omitempty"`
+	Subdomain *string `json:"subdomain,omitempty"`
+	DomainID  *string `json:"domainId,omitempty"`
 }
 
-func (c *Client) CreateResource(orgID string, res *Resource) (*Resource, error) {
+func (c *Client) CreateResource(orgID string, res Resource) (*Resource, error) {
+	res.Enabled = nil
 	path := fmt.Sprintf("/org/%s/resource", orgID)
-	type ResourceCreate struct {
-		Resource
-		Enabled interface{} `json:"enabled,omitempty"`
-	}
-	resCreate := ResourceCreate{Resource: *res}
-	data, err := c.doRequest("PUT", path, resCreate)
+	data, err := c.doRequest("PUT", path, res)
 	if err != nil {
 		return nil, err
 	}
@@ -373,16 +369,11 @@ func (c *Client) GetResource(resID int) (*Resource, error) {
 	return &out, err
 }
 
-func (c *Client) UpdateResource(resID int, res *Resource) (*Resource, error) {
+func (c *Client) UpdateResource(resID int, res Resource) (*Resource, error) {
+	res.Http = nil
+	res.Protocol = nil
 	path := fmt.Sprintf("/resource/%d", resID)
-	// http and protocol cannot be used to update in place
-	type ResourceUpdate struct {
-		Resource
-		Http     interface{} `json:"http,omitempty"`
-		Protocol interface{} `json:"protocol,omitempty"`
-	}
-	resUpdate := ResourceUpdate{Resource: *res}
-	data, err := c.doRequest("POST", path, resUpdate)
+	data, err := c.doRequest("POST", path, res)
 	if err != nil {
 		return nil, err
 	}
