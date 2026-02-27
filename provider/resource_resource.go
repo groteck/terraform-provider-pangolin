@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -302,7 +303,13 @@ func (r *resourceResource) Read(ctx context.Context, req resource.ReadRequest, r
 
 	res, err := r.client.GetResource(int(data.ID.ValueInt64()))
 	if err != nil {
-		resp.Diagnostics.AddError("Error reading resource", err.Error())
+		var apiError *client.APIError
+		if errors.As(err, &apiError) && apiError.ApiResponse.Status == 404 {
+			resp.State.RemoveResource(ctx)
+			resp.Diagnostics.AddWarning("Error reading resource, fixed by creating it...", err.Error())
+		} else {
+			resp.Diagnostics.AddError("Error reading resource", err.Error())
+		}
 		return
 	}
 
