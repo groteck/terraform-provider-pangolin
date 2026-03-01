@@ -30,7 +30,7 @@ jobs:
       - name: List keys
         run: gpg --list-secret-keys --keyid-format LONG
       - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
+        uses: goreleaser/goreleaser-action@v7
         with:
           args: release --clean
         env:
